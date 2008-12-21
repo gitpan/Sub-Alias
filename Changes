@@ -1,0 +1,6 @@
+# -*- yaml -*-
+# Revision history for Sub-Alias
+
+0.01:
+  - Initial release: alias foo => 'bar'
+
