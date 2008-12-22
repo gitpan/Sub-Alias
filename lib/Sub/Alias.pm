@@ -10,9 +10,9 @@ use Sub::Exporter -setup => {
     groups => { default => [ 'alias' ] }
 };
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
-sub alias {}
+sub alias { }
 
 sub __inject_alias {
     B::Hooks::Parser::setup();
@@ -21,10 +21,11 @@ sub __inject_alias {
 
     my $word = qr/(?: \w+ | "\w+" | '\w+' )/x;
 
-    my ($new_name, $old_name) = $line =~ m/alias\s+($word)\s*(?:=>|,)\s*($word)/;
+    my ($new_name, $old_name) = $line =~ m/alias\s+($word)\s*(?:=>|,)\s*(?:\\&)?($word)?/;
+    return unless $new_name && $old_name;
+
     $new_name =~ s/^["']//; $new_name =~ s/["']$//;
     $old_name =~ s/^["']//; $old_name =~ s/["']$//;
-
     substr($line, $offset, 0) = " ;{ sub $new_name; *$new_name = \*$old_name };";
     B::Hooks::Parser::set_linestr($line);
 }
@@ -76,21 +77,22 @@ This function is exported by default.
 
 B<NOTICE: It needs to be called with all arguments on the same line.>
 
-The alias subroutine is referenced by its names, not reference. So
-this works:
+The alias subroutine can be referenced by its name:
 
     alias get_name => 'name';
 
-But this doen't:
+Or by its reference:
 
     alias get_name => \&name;
 
-Could be working out to make this working like it should. Also notice
-that doing this will actually call the C<name> function.
+Also notice that doing this will actually call the C<name> function:
 
     alias get_name => name;
 
-You'll just need to pass function names as strings.
+However, C<get_name> will still be an alias to C<name> funciton after this
+statement.
+
+It is recommended that you just pass function names as strings.
 
 =back
 
