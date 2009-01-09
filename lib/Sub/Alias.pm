@@ -3,34 +3,48 @@ use warnings;
 use strict;
 use 5.008;
 
-use B::Hooks::Parser;
-
 use Sub::Exporter -setup => {
     exports => [ 'alias' ],
     groups => { default => [ 'alias' ] }
 };
 
-our $VERSION = '0.02';
+use Devel::BeginLift qw(alias);
 
-sub alias { }
+use Devel::Declare qw();
 
-sub __inject_alias {
-    B::Hooks::Parser::setup();
-    my $line = B::Hooks::Parser::get_linestr;
-    my $offset = B::Hooks::Parser::get_linestr_offset;
+our $VERSION = '0.03';
 
-    my $word = qr/(?: \w+ | "\w+" | '\w+' )/x;
+sub alias {
+    my ($new_name, $old_name) = @_;
+    my $caller = caller;
 
-    my ($new_name, $old_name) = $line =~ m/alias\s+($word)\s*(?:=>|,)\s*(?:\\&)?($word)?/;
-    return unless $new_name && $old_name;
+    if (defined($new_name) && defined($old_name)) {
+        _alias($new_name, $old_name, $caller);
+    }
+    else {
+        my $line = Devel::Declare::get_linestr;
+        my $offset = Devel::Declare::get_linestr_offset;
 
-    $new_name =~ s/^["']//; $new_name =~ s/["']$//;
-    $old_name =~ s/^["']//; $old_name =~ s/["']$//;
-    substr($line, $offset, 0) = " ;{ sub $new_name; *$new_name = \*$old_name };";
-    B::Hooks::Parser::set_linestr($line);
+        my $line2 = $line;
+        if ($line2 =~ s/alias/Sub::Alias::_alias/) {
+            substr($line, $offset, 0) = $line2;
+            Devel::Declare::set_linestr($line);
+        }
+    }
+    return 1;
 }
 
-use B::Hooks::OP::Check::EntersubForCV \&alias => \&__inject_alias;
+
+sub _alias {
+    my ($new_name, $old_name, $caller) = @_;
+    $caller ||= caller;
+
+    no strict;
+    no warnings;
+    *{"$caller\::${new_name}"} = ref($old_name) ? $old_name : *{"$caller\::${old_name}"};
+
+    return 1;
+}
 
 1;
 
@@ -61,7 +75,7 @@ subroute aliases with their names, but not code refs.
 The not-so-scarily-described way to alias a sub looks like this:
 
     sub name { "..." }
-    { sub get_name; *get_name = \&name; }
+    *get_name = \&name;
 
 As you can see, it's a bit of trouble to type the whole line without
 without making your finger jammed unless you're using some smart text
@@ -74,8 +88,6 @@ editors.
 =item alias $new_name => $old_name
 
 This function is exported by default.
-
-B<NOTICE: It needs to be called with all arguments on the same line.>
 
 The alias subroutine can be referenced by its name:
 
@@ -94,11 +106,17 @@ statement.
 
 It is recommended that you just pass function names as strings.
 
+B<NOTICE:> If your new name depends on runtime data:
+
+    alias $new_foo => \&foo;
+
+You need to put them in a single line alone.
+
 =back
 
 =head1 DEPENDENCIES
 
-L<B::Hooks::Parser>, L<Sub::Exporter>
+L<Devel::BeginLift>, L<Devel::Declare>, L<Sub::Exporter>
 
 =head1 INCOMPATIBILITIES
 
@@ -120,7 +138,7 @@ Kang-min Liu  C<< <gugod@gugod.org> >>
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2008, Kang-min Liu C<< <gugod@gugod.org> >>.
+Copyright (c) 2008, 2009, Kang-min Liu C<< <gugod@gugod.org> >>.
 
 This is free software, licensed under:
 

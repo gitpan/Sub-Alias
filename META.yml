@@ -17,7 +17,8 @@ no_index:
     - inc
     - t
 requires:
-  B::Hooks::Parser: 0
+  Devel::BeginLift: 0
+  Devel::Declare: 0
   Sub::Exporter: 0
   perl: 5.8.0
-version: 0.02
+version: 0.03
